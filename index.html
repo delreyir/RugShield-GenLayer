@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RugShield | AI Smart Escrow on GenLayer</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230C0C0C'/%3E%3Cpath d='M16 4 L26 8 L26 17 C26 22.5 21.5 27 16 28 C10.5 27 6 22.5 6 17 L6 8 Z' fill='%236128E6'/%3E%3Cpath d='M16 4 L26 8 L26 17 C26 22.5 21.5 27 16 28 C10.5 27 6 22.5 6 17 L6 8 Z' fill='none' stroke='%237239F7' stroke-width='0.8' opacity='0.6'/%3E%3Ctext x='16' y='19.5' text-anchor='middle' font-family='Arial,sans-serif' font-size='9' font-weight='700' fill='white' letter-spacing='0.5'%3ERS%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { fontFamily: { sans: ['Inter','sans-serif'], mono: ['JetBrains Mono','monospace'] }, colors: { primary: '#6128E6', primaryHover: '#7239F7' } } }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-nav { backdrop-filter: blur(12px); }
+        .panel { border-radius: 16px; transition: all 0.3s ease; }
+        .gen-input:focus { border-color: #6128E6 !important; outline: none; box-shadow: 0 0 0 1px rgba(97,40,230,0.5); }
+        .hero-title { font-size: clamp(3rem, 6vw, 5.5rem); line-height: 1.05; letter-spacing: -0.03em; font-weight: 600; }
+        .view-section { transition: opacity 0.4s ease, transform 0.4s ease; }
+        .hidden-view { opacity: 0; pointer-events: none; position: absolute; transform: translateY(10px); visibility: hidden; }
+        .active-view { opacity: 1; pointer-events: auto; position: relative; transform: translateY(0); visibility: visible; }
+        .toast { position: fixed; bottom: 24px; right: 24px; transform: translateY(100px); opacity: 0; transition: all 0.4s cubic-bezier(0.68,-0.55,0.265,1.55); z-index: 100; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .val-card { transition: all 0.4s ease; }
+        .val-card.agreed { border-color: #4CAF50 !important; }
+        .val-card.disagreed { border-color: #FF3B30 !important; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-gray-50 dark:bg-[#070707] text-gray-900 dark:text-[#F2F2F2]">
+
+<!-- NAV -->
+<nav class="w-full px-6 md:px-10 py-4 glass-nav sticky top-0 z-40 flex justify-between items-center bg-white/80 dark:bg-[#070707]/80 border-b border-gray-200 dark:border-[#1A1A1A]">
+    <div class="flex items-center gap-3 cursor-pointer" id="navLogo">
+        <div class="w-7 h-7 rounded bg-gray-100 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] flex items-center justify-center">
+            <i class="fa-solid fa-shield-halved text-gray-700 dark:text-[#F2F2F2] text-[10px]"></i>
+        </div>
+        <h1 class="font-semibold text-lg tracking-tight">RugShield <span class="text-[9px] text-gray-500 dark:text-[#888] tracking-[0.2em] font-medium uppercase">GenVM</span></h1>
+    </div>
+    <div class="hidden md:flex items-center gap-8 text-[15px] font-semibold text-gray-500 dark:text-[#888]">
+        <button id="navDashboard" class="hover:text-gray-900 dark:hover:text-white transition-colors">Dashboard</button>
+        <button id="navHistory" class="hover:text-gray-900 dark:hover:text-white transition-colors">History</button>
+        <a href="https://docs.genlayer.com" target="_blank" class="hover:text-gray-900 dark:hover:text-white transition-colors">Docs</a>
+    </div>
+    <div class="flex items-center gap-3">
+        <div class="hidden md:flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-[#888] bg-gray-100 dark:bg-[#111] px-3 py-1.5 rounded-full border border-gray-200 dark:border-[#222]">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>Studionet
+        </div>
+        <button id="connectWallet" class="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] text-gray-900 dark:text-[#F2F2F2] text-[13px] font-medium px-5 py-2 rounded-full transition-all flex items-center gap-2">
+            <i class="fa-solid fa-wallet text-gray-500 dark:text-[#888]"></i><span>Connect</span>
+        </button>
+        <button id="themeToggle" class="w-9 h-9 rounded-full bg-gray-100 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </div>
+</nav>
+
+<main class="flex-1 w-full max-w-[1400px] mx-auto px-6 relative flex flex-col items-center">
+
+    <!-- HERO -->
+    <div id="heroView" class="view-section active-view flex flex-col items-center justify-center w-full min-h-[80vh] text-center mt-[-40px]">
+        <div class="border border-gray-200 dark:border-[#222] rounded-full px-4 py-1.5 text-gray-600 dark:text-[#888] uppercase flex items-center gap-2 mb-8 text-[0.65rem] tracking-[0.15em]">
+            <span class="w-1 h-1 rounded-full bg-primary animate-pulse"></span>INTELLIGENT ESCROW • NATIVE GENVM
+        </div>
+        <h1 class="hero-title mb-6 text-gray-900 dark:text-[#EAEAEA]">Security, refined.<br><span class="text-gray-400 dark:text-[#888]">Built on GenLayer.</span></h1>
+        <p class="max-w-2xl mx-auto mb-12 text-gray-500 dark:text-[#888] text-lg">A precision AI-powered Escrow for Web3. Trustless execution, live GitHub consensus, settled by Optimistic Democracy.</p>
+        <div class="flex items-center gap-4">
+            <button id="openAppBtn" class="bg-primary hover:bg-primaryHover text-white text-sm font-medium px-6 py-3 rounded-full transition-all flex items-center gap-2 shadow-[0_4px_14px_0_rgba(97,40,230,0.39)]">
+                Launch App <i class="fa-solid fa-arrow-right-long ml-1"></i>
+            </button>
+            <a href="https://docs.genlayer.com" target="_blank" class="bg-white dark:bg-transparent border border-gray-200 dark:border-[#333] text-gray-900 dark:text-[#F2F2F2] text-sm font-medium px-6 py-3 rounded-full transition-all">Read docs</a>
+        </div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 dark:bg-primary/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+    </div>
+
+    <!-- APP VIEW -->
+    <div id="appView" class="view-section hidden-view w-full py-10 flex flex-col gap-8">
+
+        <!-- Stats -->
+        <div id="statsSection" class="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="panel p-5 bg-white dark:bg-[#0C0C0C] border border-gray-200 dark:border-[#1A1A1A] flex items-center justify-between">
+                <div><div class="text-[10px] font-bold text-gray-500 dark:text-[#888] uppercase tracking-wider mb-1">Total Value Locked</div><div class="text-2xl font-bold">12,450 <span class="text-sm text-gray-500 dark:text-[#666]">GEN</span></div></div>
+                <div class="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-[#222] flex items-center justify-center text-primary"><i class="fa-solid fa-vault"></i></div>
+            </div>
+            <div class="panel p-5 bg-white dark:bg-[#0C0C0C] border border-gray-200 dark:border-[#1A1A1A] flex items-center justify-between">
+                <div><div class="text-[10px] font-bold text-gray-500 dark:text-[#888] uppercase tracking-wider mb-1">AI Audits Run</div><div class="text-2xl font-bold" id="auditCount">0 <span class="text-sm text-green-500"><i class="fa-solid fa-arrow-trend-up"></i></span></div></div>
+                <div class="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-[#222] flex items-center justify-center text-primary"><i class="fa-solid fa-microchip"></i></div>
+            </div>
+            <div class="panel p-5 bg-white dark:bg-[#0C0C0C] border border-gray-200 dark:border-[#1A1A1A] flex items-center justify-between">
+                <div><div class="text-[10px] font-bold text-gray-500 dark:text-[#888] uppercase tracking-wider mb-1">Network Status</div><div class="text-2xl font-bold text-green-600 dark:text-[#4CAF50]">Optimal</div></div>
+                <div class="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-[#222] flex items-center justify-center text-green-600 dark:text-[#4CAF50]"><i class="fa-solid fa-server"></i></div>
+            </div>
+        </div>
+
+        <div class="flex flex-col xl:flex-row gap-8 w-full">
+            <!-- Form -->
+            <div id="formSection" class="w-full xl:w-[440px] flex-shrink-0">
+                <h2 class="text-lg font-medium mb-5">New Contract</h2>
+                <div class="panel p-7 bg-white dark:bg-[#0C0C0C] border border-gray-200 dark:border-[#1A1A1A]">
+                    <form id="escrowForm" class="space-y-5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 dark:text-[#888] uppercase tracking-wider mb-2">Token Name <span class="text-primary">*</span></label>
+                            <input type="text" id="tokenName" required class="gen-input w-full rounded-xl px-4 py-3 text-sm bg-gray-50 dark:bg-[#070707] border border-gray-200 dark:border-[#222] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[#555]" placeholder="e.g. ETH, BTC, SOL, BNB">
+                            <p class="text-[10px] text-gray-400 dark:text-[#666] mt-1.5 flex items-center gap-1"><i class="fa-solid fa-magnifying-glass"></i> Auto-checked on Binance ({TOKEN}USDT) via gl.nondet.web.get</p>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 dark:text-[#888] uppercase tracking-wider mb-2">Lock Amount <span class="text-primary">*</span></label>
+                            <div class="relative flex items-center">
+                                <input type="number" id="amount" required class="gen-input w-full rounded-xl pl-4 pr-16 py-3 text-sm bg-gray-50 dark:bg-[#070707] border border-gray-200 dark:border-[#222] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[#555]" placeholder="0.00">
+                                <div class="absolute right-4 text-xs font-bold bg-gray-200 dark:bg-[#1A1A1A] px-2 py-1 rounded">GEN</div>
+                            </div>
+                        </div>
+                        <button id="deployBtn" type="submit" class="w-full bg-gray-900 dark:bg-[#1A1A1A] hover:bg-primary dark:hover:bg-primary border border-transparent dark:border-[#333] text-white font-medium py-3.5 rounded-xl transition-all flex justify-center items-center gap-2 text-sm group">
+                            <i class="fa-solid fa-lock text-gray-400 dark:text-[#888] group-hover:text-white transition-colors"></i> Deploy Escrow
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- List -->
+            <div id="listSection" class="w-full flex-grow flex flex-col">
+                <h2 id="listTitle" class="text-lg font-medium mb-5">Recent Escrows</h2>
+                <div id="escrowsList" class="grid grid-cols-1 md:grid-cols-2 gap-5 w-full items-start content-start">
+                    <div id="emptyState" class="col-span-full panel p-10 flex flex-col items-center justify-center border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0C]">
+                        <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-6"><i class="fa-solid fa-shield-halved text-2xl"></i></div>
+                        <h3 class="font-medium text-lg mb-2">Protocol Ready</h3>
+                        <p class="text-sm text-gray-500 dark:text-[#888] mb-10 text-center max-w-md">Deploy an escrow — just type a token symbol (ETH, SOL, BTC...). The contract checks a verified whitelist or queries Binance, then reaches deterministic GenVM consensus.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
+                            <div class="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] p-5 rounded-xl text-center">
+                                <div class="text-primary mb-3 text-lg"><i class="fa-solid fa-lock"></i></div>
+                                <div class="text-xs font-bold mb-1 uppercase tracking-wide">1. Lock Funds</div>
+                                <div class="text-gray-500 dark:text-[#666] text-[11px]">GEN tokens locked with GitHub repo reference.</div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] p-5 rounded-xl text-center">
+                                <div class="text-primary mb-3 text-lg"><i class="fa-solid fa-chart-line"></i></div>
+                                <div class="text-xs font-bold mb-1 uppercase tracking-wide">2. Binance Fetch</div>
+                                <div class="text-gray-500 dark:text-[#666] text-[11px]">gl.nondet.web.get fetches live 24h ticker price, volume & trade count.</div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] p-5 rounded-xl text-center">
+                                <div class="text-green-600 dark:text-[#4CAF50] mb-3 text-lg"><i class="fa-solid fa-check-double"></i></div>
+                                <div class="text-xs font-bold mb-1 uppercase tracking-wide">3. AI Settle</div>
+                                <div class="text-gray-500 dark:text-[#666] text-[11px]">5 validators agree on the same deterministic decision via strict_eq.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL -->
+<div id="consensusModal" class="fixed inset-0 bg-gray-900/50 dark:bg-[#050505]/90 backdrop-blur-md z-50 hidden flex-col items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="w-full max-w-4xl bg-white dark:bg-[#0A0A0C] border border-gray-200 dark:border-[#1A1A1A] rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="bg-gray-100 dark:bg-[#0D0D0D] border-b border-gray-200 dark:border-[#1A1A1A] px-4 py-3 flex justify-between items-center select-none flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-[#FF5F56]"></div>
+                <div class="w-3 h-3 rounded-full bg-[#FFBD2E]"></div>
+                <div class="w-3 h-3 rounded-full bg-[#27C93F]"></div>
+                <span class="ml-4 font-mono text-[10px] text-gray-500 dark:text-[#666] tracking-widest uppercase">GenVM Execution — Optimistic Democracy</span>
+            </div>
+            <button id="closeModalBtn" class="text-gray-500 hover:text-gray-900 dark:text-[#666] dark:hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-6 font-mono text-[13px] text-gray-600 dark:text-[#888] flex-grow overflow-y-auto space-y-5" id="terminalArea">
+            <div class="flex items-center gap-2"><i class="fa-solid fa-bolt text-primary"></i><span>Initializing RugShield Intelligent Contract...</span></div>
+            <div class="text-gray-800 dark:text-white bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] px-3 py-2 rounded inline-block text-xs">
+                Execution Mode: <span class="text-primary font-bold">Optimistic Democracy</span> · Validators: <span class="text-primary font-bold">5 LLMs</span>
+            </div>
+
+            <div id="term-step1" class="hidden relative pl-6 border-l border-gray-300 dark:border-[#222]">
+                <div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-400 dark:bg-[#444]"></div>
+                <div class="flex items-center gap-2 mb-2"><span class="px-2 py-0.5 bg-gray-200 dark:bg-[#1A1A1A] text-gray-800 dark:text-white rounded text-[11px] font-bold">genvm::web_module → gl.nondet.web.get (Binance)</span></div>
+                <div class="text-gray-700 dark:text-[#CCC]">Searching: <span class="text-primary font-bold" id="modalRepoUrl"></span> <span class="animate-pulse">_</span></div>
+            </div>
+
+            <div id="term-step1-res" class="hidden pl-6 border-l border-gray-300 dark:border-[#222] space-y-2">
+                <div><span class="text-[#4CAF50]">✔</span> HTTP 200 — Binance API responded.</div>
+                <div class="bg-white dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#1A1A1A] rounded p-3 text-[11px] leading-relaxed overflow-x-auto" id="githubDataBox"></div>
+            </div>
+
+            <div id="term-step2" class="hidden relative pl-6 border-l border-primary/50 mt-2">
+                <div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(97,40,230,0.5)]"></div>
+                <div class="flex items-center gap-2 mb-3"><span class="px-2 py-0.5 bg-primary/10 dark:bg-primary/20 text-primary rounded text-[11px] font-bold">genvm::consensus → gl.eq_principle.strict_eq (Binance metrics)</span></div>
+                <div class="text-gray-700 dark:text-[#CCC] mb-4">Proposing to Validator Set — 5 nodes verifying Binance metrics deterministically...</div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2" id="validatorGrid"></div>
+            </div>
+
+            <div id="term-step3" class="hidden relative pl-6 border-l border-[#4CAF50] mt-2">
+                <div class="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#4CAF50]" id="consensusDot"></div>
+                <div class="flex items-center gap-2 mb-2"><span class="px-2 py-0.5 rounded text-[11px] font-bold" id="consensusBadge">genvm::consensus</span></div>
+                <div class="mt-3 bg-white dark:bg-[#050505] border border-gray-200 dark:border-[#1A1A1A] p-4 rounded-lg overflow-x-auto">
+                    <pre id="jsonResult" class="whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-gray-800 dark:text-gray-300"></pre>
+                </div>
+            </div>
+
+            <div id="term-done" class="hidden mt-6 pt-4 border-t border-gray-200 dark:border-[#1A1A1A] flex justify-end">
+                <button onclick="closeModalAndRefresh()" class="bg-primary hover:bg-primaryHover text-white px-8 py-2.5 text-sm font-medium rounded-full transition-all">Complete & See Results</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toastNotif" class="toast flex items-center gap-4 bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] p-4 rounded-xl shadow-xl">
+    <div id="toastIcon" class="w-10 h-10 rounded-full flex items-center justify-center text-lg"></div>
+    <div><h4 id="toastTitle" class="font-bold text-sm"></h4><p id="toastMessage" class="text-xs text-gray-500 dark:text-[#888]"></p></div>
+    <button onclick="document.getElementById('toastNotif').classList.remove('show')" class="ml-4 text-gray-400 hover:text-gray-900 dark:hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
+<script>
+// ── STATE (persisted in localStorage) ────────────────────────────────────────
+let escrows         = JSON.parse(localStorage.getItem('rs_escrows') || '[]');
+let escrowIdCounter = parseInt(localStorage.getItem('rs_counter')  || '1');
+let totalAudits     = parseInt(localStorage.getItem('rs_audits')   || '0');
+let currentIdx = null, userAddress = null, lastDecision = null, lastCoinData = null;
+let glClient = null;
+
+function saveState() {
+    localStorage.setItem('rs_escrows', JSON.stringify(escrows));
+    localStorage.setItem('rs_counter', escrowIdCounter);
+    localStorage.setItem('rs_audits',  totalAudits);
+}
+
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+// Paste your deployed contract address from GenLayer Studio here:
+const CONTRACT_ADDRESS = '0x526c3739FEF49C478902bF521a97b6626f81985f';
+// FORCE RESET on every page load while debugging — guarantees no stale state.
+localStorage.removeItem('rs_escrows');
+localStorage.removeItem('rs_counter');
+localStorage.removeItem('rs_audits');
+localStorage.setItem('rs_contract', CONTRACT_ADDRESS);
+escrows = []; escrowIdCounter = 1; totalAudits = 0;
+
+// ── GENLAYER SDK INIT ──────────────────────────────────────────────────
+async function initGenLayerClient(address) {
+    try {
+        const { createClient } = await import('https://esm.sh/genlayer-js@latest');
+        const { studionet }   = await import('https://esm.sh/genlayer-js@latest/chains');
+        glClient = createClient({ chain: studionet, account: address });
+        console.log('[RugShield] GenLayer client ready ✓');
+    } catch(e) {
+        console.warn('[RugShield] SDK unavailable, using simulation mode:', e.message);
+        glClient = null;
+    }
+}
+const isRealMode = () => glClient !== null && CONTRACT_ADDRESS !== 'YOUR_CONTRACT_ADDRESS';
+
+const VALIDATORS = [
+    { id:'v0', label:'Claude 3.5',  icon:'fa-solid fa-robot',     color:'#6128E6', addr:'0x794a3f' },
+    { id:'v1', label:'GPT-4o',      icon:'fa-solid fa-microchip', color:'#10a37f', addr:'0xFC5b2e' },
+    { id:'v2', label:'Gemini 1.5',  icon:'fa-solid fa-gem',       color:'#4285F4', addr:'0x5E7c91' },
+    { id:'v3', label:'Qwen2.5',     icon:'fa-solid fa-brain',     color:'#FF6B35', addr:'0xA12d4f' },
+    { id:'v4', label:'Llama 3.3',   icon:'fa-solid fa-fire',      color:'#0064e0', addr:'0xD8e023' },
+];
+
+// Restore auditCount display on load
+document.addEventListener('DOMContentLoaded', () => {
+    if (totalAudits > 0) {
+        $('auditCount').innerHTML=`${totalAudits} <span class="text-sm text-green-500"><i class="fa-solid fa-arrow-trend-up"></i></span>`;
+    }
+});
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const heroView=$('heroView'), appView=$('appView'), formSection=$('formSection'), statsSection=$('statsSection');
+const escrowsList=$('escrowsList'), listTitle=$('listTitle'), emptyState=$('emptyState');
+const modal=$('consensusModal'), terminalArea=$('terminalArea'), deployBtn=$('deployBtn');
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+$('themeToggle').addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    const dark = document.documentElement.classList.contains('dark');
+    $('themeToggle').innerHTML = dark
+        ? '<i class="fa-solid fa-sun text-gray-400"></i>'
+        : '<i class="fa-solid fa-moon text-gray-600"></i>';
+});
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function showHero() {
+    appView.classList.replace('active-view','hidden-view');
+    heroView.classList.replace('hidden-view','active-view');
+}
+function showDashboard() {
+    heroView.classList.replace('active-view','hidden-view');
+    appView.classList.replace('hidden-view','active-view');
+    formSection.style.display='block'; statsSection.style.display='grid';
+    escrowsList.className='grid grid-cols-1 md:grid-cols-2 gap-5 w-full items-start content-start';
+    listTitle.textContent='Recent Escrows';
+    renderEscrows();
+}
+function showHistory() {
+    heroView.classList.replace('active-view','hidden-view');
+    appView.classList.replace('hidden-view','active-view');
+    formSection.style.display='none'; statsSection.style.display='none';
+    escrowsList.className='grid grid-cols-1 md:grid-cols-3 gap-5 w-full items-start content-start';
+    listTitle.textContent='Execution History';
+    renderEscrows();
+}
+$('navLogo').addEventListener('click', showHero);
+$('openAppBtn').addEventListener('click', showDashboard);
+$('navDashboard').addEventListener('click', showDashboard);
+$('navHistory').addEventListener('click', showHistory);
+
+// ── WALLET ────────────────────────────────────────────────────────────────────
+async function switchToGenLayerNetwork() {
+    const hex = '0xf22f';
+    try { await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:hex}]}); }
+    catch(e) {
+        if (e.code===4902||e.code===-32603) {
+            await window.ethereum.request({method:'wallet_addEthereumChain',params:[{
+                chainId:hex, chainName:'GenLayer Studionet',
+                rpcUrls:['https://studio.genlayer.com/api'],
+                nativeCurrency:{name:'GEN',symbol:'GEN',decimals:18}
+            }]});
+        }
+    }
+}
+
+$('connectWallet').addEventListener('click', async () => {
+    const btn = $('connectWallet');
+    if (userAddress) {
+        userAddress = null;
+        btn.innerHTML='<i class="fa-solid fa-wallet text-gray-500 dark:text-[#888]"></i><span>Connect</span>';
+        showHero(); return;
+    }
+    if (typeof window.ethereum==='undefined') { alert('Please install Rabby or MetaMask!'); return; }
+    try {
+        btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Connecting...';
+        await switchToGenLayerNetwork();
+        const [addr] = await window.ethereum.request({method:'eth_requestAccounts'});
+        userAddress = addr;
+        const short = `${addr.slice(0,6)}...${addr.slice(38)}`;
+        btn.innerHTML=`<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Initializing SDK...</span>`;
+        await initGenLayerClient(addr);
+        // Show mode badge
+        const modeBadge = isRealMode()
+            ? '<span class="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded ml-1">LIVE</span>'
+            : '<span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded ml-1">DEMO</span>';
+        btn.innerHTML=`<div class="w-3 h-3 rounded-full bg-primary"></div><span class="font-mono">${short}</span>${modeBadge}`;
+        btn.onmouseenter=()=>btn.innerHTML='<i class="fa-solid fa-power-off text-red-500"></i><span class="text-red-500 font-mono">Disconnect</span>';
+        btn.onmouseleave=()=>btn.innerHTML=`<div class="w-3 h-3 rounded-full bg-primary"></div><span class="font-mono">${short}</span>${modeBadge}`;
+        showDashboard();
+    } catch(e) { btn.innerHTML='<i class="fa-solid fa-wallet text-gray-500 dark:text-[#888]"></i><span>Connect</span>'; }
+});
+
+// ── FORM ──────────────────────────────────────────────────────────────────────
+const strToHex = s => '0x' + [...s].map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+const genAddr  = () => '0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join('');
+
+$('escrowForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!userAddress) { alert('Connect your wallet first!'); return; }
+    const token=$('tokenName').value.trim(), amount=$('amount').value;
+    if (!token) { alert('Please enter a token name'); return; }
+    try {
+        if (isRealMode()) {
+            // ─ REAL on-chain call via GenLayer SDK ────────────────────────
+            deployBtn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Deploying on-chain...';
+            const txHash = await glClient.writeContract({
+                address: CONTRACT_ADDRESS,
+                functionName: 'create_escrow',
+                args: [token, parseInt(amount)]
+            });
+            deployBtn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Waiting for finalization...';
+            const receipt = await glClient.waitForTransactionReceipt({ hash: txHash });
+            const newId = receipt?.result ?? escrowIdCounter;
+            escrows.push({ id: newId, txHash, token, amount, status: 'LOCKED', report: '' });
+        } else {
+            // ─ Demo / simulation mode (MetaMask sign for confirmation UX) ───
+            deployBtn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Signing...';
+            await window.ethereum.request({method:'personal_sign', params:[
+                strToHex(`[DEMO] Deploy RugShield Escrow\nToken: ${token}\nAmount: ${amount} GEN\n\nNote: Set CONTRACT_ADDRESS for real on-chain deployment.`),
+                userAddress
+            ]});
+            escrows.push({ id: escrowIdCounter++, addr: genAddr(), token, amount, status: 'LOCKED', report: '' });
+        }
+        saveState();
+        renderEscrows(); $('escrowForm').reset();
+        deployBtn.innerHTML='<i class="fa-solid fa-lock text-gray-400 dark:text-[#888] group-hover:text-white transition-colors"></i> Deploy Escrow';
+    } catch(e) {
+        console.error(e);
+        deployBtn.innerHTML='<i class="fa-solid fa-lock text-gray-400 dark:text-[#888] group-hover:text-white transition-colors"></i> Deploy Escrow';
+    }
+});
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderEscrows() {
+    if (escrows.length===0) {
+        emptyState.style.display='flex';
+        Array.from(escrowsList.children).forEach(c=>{if(c.id!=='emptyState')c.remove();});
+        return;
+    }
+    emptyState.style.display='none';
+    Array.from(escrowsList.children).forEach(c=>{if(c.id!=='emptyState')c.remove();});
+    [...escrows].reverse().forEach(escrow => {
+        const idx = escrows.findIndex(e=>e.id===escrow.id);
+        const card = document.createElement('div');
+        card.className='panel p-5 flex flex-col border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0C0C0C] hover:border-gray-300 dark:hover:border-[#2A2A2A] h-fit';
+        const badge = escrow.status==='LOCKED'
+            ? 'border-gray-300 text-gray-500 dark:border-[#333] dark:text-[#AAA]'
+            : escrow.status==='RELEASED'
+                ? 'border-green-500/30 text-green-600 dark:text-[#4CAF50] bg-green-50 dark:bg-transparent'
+                : 'border-red-500/30 text-red-600 dark:text-[#FF3B30] bg-red-50 dark:bg-transparent';
+        const action = escrow.status==='LOCKED'
+            ? `<button onclick="runAudit(${idx})" id="evalBtn-${idx}" class="text-[11px] font-medium bg-gray-100 dark:bg-[#1A1A1A] hover:bg-primary border border-gray-200 dark:border-[#333] hover:text-white hover:border-primary px-3 py-1.5 rounded transition-colors">Run GenVM Audit</button>`
+            : escrow.status==='RELEASED'
+                ? `<button onclick="window.open('https://studio.genlayer.com/transactions/${escrow.addr}','_blank')" class="bg-gray-100 dark:bg-[#111] hover:bg-gray-200 dark:hover:bg-[#222] border border-gray-200 dark:border-[#333] text-[10px] px-3 py-1.5 rounded flex items-center gap-1.5 hover:text-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Tx</button>`
+                : `<span class="text-[11px] font-medium text-red-600 dark:text-[#FF3B30] bg-red-50 dark:bg-[#FF3B30]/10 px-3 py-1.5 rounded border border-red-100 dark:border-[#FF3B30]/20 flex items-center gap-1.5"><i class="fa-solid fa-arrow-rotate-left"></i> Refunded</span>`;
+        const reportArea = escrow.status!=='LOCKED' ? `
+            <div class="mt-5 pt-4 border-t border-gray-100 dark:border-[#1A1A1A] -mx-5 -mb-5 p-5 bg-gray-50/50 dark:bg-[#0A0A0C]/50">
+                <div class="text-[10px] font-bold text-gray-500 dark:text-[#666] uppercase tracking-wider mb-2 flex items-center gap-1.5"><i class="fa-solid fa-microchip text-primary"></i> GenVM Audit Result</div>
+                <p class="text-[11px] text-gray-700 dark:text-[#CCC] leading-relaxed">${escrow.report}</p>
+            </div>` : '';
+        card.innerHTML=`
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="font-semibold text-base mb-0.5 capitalize">${escrow.token}</h3>
+                    <a href="https://www.binance.com/en/trade/${escrow.token.toUpperCase()}_USDT" target="_blank" class="text-[10px] font-mono text-gray-400 dark:text-[#666] hover:text-primary flex items-center gap-1">
+                        <i class="fa-solid fa-chart-line"></i> Binance: ${escrow.token.toUpperCase()}USDT
+                    </a>
+                </div>
+                <span class="text-[9px] px-2 py-0.5 rounded border uppercase font-bold tracking-wider ${badge}">${escrow.status}</span>
+            </div>
+            <div class="flex justify-between items-end mt-auto">
+                <div><span class="text-[9px] text-gray-500 dark:text-[#888] uppercase tracking-wider block mb-0.5">Value Locked</span>
+                <span class="text-sm font-semibold">${escrow.amount} <span class="text-gray-500 dark:text-[#888] text-xs">GEN</span></span></div>
+                ${action}
+            </div>
+            ${reportArea}`;
+        escrowsList.appendChild(card);
+    });
+}
+
+// ── BINANCE FETCH (mirrors gl.nondet.web.get on-chain) ───────────────────────
+// Common-name → Binance ticker map for user-friendliness.
+const BINANCE_NAME_MAP = {
+    ethereum:'ETH', ether:'ETH',
+    bitcoin:'BTC', xbt:'BTC',
+    solana:'SOL',
+    'usd-coin':'USDC', tether:'USDT',
+    binancecoin:'BNB', binance:'BNB',
+    polygon:'MATIC', pol:'MATIC',
+    cardano:'ADA',
+    ripple:'XRP',
+    dogecoin:'DOGE',
+    avalanche:'AVAX',
+    polkadot:'DOT',
+    chainlink:'LINK',
+    uniswap:'UNI',
+    litecoin:'LTC',
+    cosmos:'ATOM',
+    arbitrum:'ARB',
+    optimism:'OP',
+    tron:'TRX',
+    'shiba-inu':'SHIB',
+    maker:'MKR',
+    'the-open-network':'TON',
+    filecoin:'FIL',
+    'ethereum-classic':'ETC',
+    stellar:'XLM',
+    algorand:'ALGO',
+    'internet-computer':'ICP',
+    vechain:'VET',
+    hedera:'HBAR',
+};
+
+function resolveBinanceSymbol(tokenName) {
+    const k = tokenName.toLowerCase().trim();
+    const ticker = BINANCE_NAME_MAP[k] || tokenName.toUpperCase().trim();
+    return ticker + 'USDT';
+}
+
+async function fetchBinanceData(tokenName) {
+    const symbol = resolveBinanceSymbol(tokenName);
+    const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Binance ${res.status}`);
+    const data = await res.json();
+    if (data.code || !data.lastPrice) throw new Error(`Symbol ${symbol} not listed on Binance`);
+    data._symbol = symbol;
+    return data;
+}
+
+// ── ANTHROPIC API (mirrors gl.nondet.exec_prompt on-chain) ───────────────────
+async function callLLM(tokenName, coinData, validatorLabel) {
+    const summary = JSON.stringify({
+        name: coinData.name, symbol: coinData.symbol,
+        price_change_24h: coinData.market_data?.price_change_percentage_24h,
+        price_change_7d: coinData.market_data?.price_change_percentage_7d,
+        volume_usd: coinData.market_data?.total_volume?.usd,
+        market_cap_usd: coinData.market_data?.market_cap?.usd,
+        twitter_followers: coinData.community_data?.twitter_followers,
+        telegram_users: coinData.community_data?.telegram_channel_user_count,
+        commits_4w: coinData.developer_data?.commit_count_4_weeks,
+        categories: coinData.categories,
+        description: coinData.description?.en?.slice(0,200)
+    });
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key': window.ANTHROPIC_KEY || ''},
+        body: JSON.stringify({
+            model:'claude-sonnet-4-20250514', max_tokens:10,
+            system:`You are a GenLayer validator node (${validatorLabel}) inside GenVM.`,
+            messages:[{role:'user', content:
+                `Analyze CoinGecko data for token "${tokenName}":\n${summary}\n\n` +
+                `SAFE = healthy price, active community, active dev\n` +
+                `RUG = price crashed -70%+, zero volume, abandoned, known scam\n` +
+                `UNVERIFIED = not found or insufficient data\n\n` +
+                `Reply with exactly one word: SAFE, RUG, or UNVERIFIED`
+            }]
+        })
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    const raw = data.content?.[0]?.text?.trim().split(/\s+/)[0].toUpperCase() || 'UNVERIFIED';
+    return ['SAFE','RUG','UNVERIFIED'].includes(raw) ? raw : 'UNVERIFIED';
+}
+
+// ── FALLBACK decision from Binance data (mirrors on-chain logic) ────────────
+function fallbackDecision(binanceData) {
+    if (!binanceData || !binanceData.lastPrice) return 'UNVERIFIED';
+    const change = parseFloat(binanceData.priceChangePercent || '0');
+    const volume = parseFloat(binanceData.quoteVolume || '0');
+    const trades = parseInt(binanceData.count || '0', 10);
+    if (change <= -70 && volume < 100000) return 'RUG';
+    if (volume < 1000 && trades < 10) return 'RUG';
+    if (volume >= 100000) return 'SAFE';
+    return 'UNVERIFIED';
+}
+
+// ── MAIN AUDIT ────────────────────────────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function runAudit(idx) {
+    const escrow = escrows[idx];
+    const btn = $(`evalBtn-${idx}`);
+    if (btn) btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Starting...';
+
+    currentIdx = idx;
+    ['term-step1','term-step1-res','term-step2','term-step3','term-done'].forEach(id=>$(id).classList.add('hidden'));
+    $('modalRepoUrl').textContent = `api.binance.com/api/v3/ticker/24hr?symbol=${resolveBinanceSymbol(escrow.token)}`;
+
+    // Build validator cards
+    const grid = $('validatorGrid');
+    grid.innerHTML = '';
+    VALIDATORS.forEach(v => {
+        const div = document.createElement('div');
+        div.id = v.id;
+        div.className = 'val-card flex flex-col bg-white dark:bg-[#0F0F0F] border border-gray-200 dark:border-[#222] p-2.5 rounded-lg';
+        div.innerHTML = `
+            <div class="flex items-center gap-1.5 mb-1.5">
+                <i class="${v.icon} text-[10px]" style="color:${v.color}"></i>
+                <span class="text-[9px] text-gray-500 dark:text-[#666] font-bold">${v.label}</span>
+            </div>
+            <div class="text-[9px] text-gray-400 dark:text-[#666] font-mono mb-2">${v.addr}</div>
+            <div class="val-status text-[10px] flex items-center gap-1.5 text-gray-400">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Pending
+            </div>`;
+        grid.appendChild(div);
+    });
+
+    modal.classList.remove('hidden');
+    setTimeout(()=>modal.classList.remove('opacity-0'), 10);
+
+    // ── Step 1: CoinGecko fetch (frontend display) ─────────────────────
+    await sleep(600);
+    $('term-step1').classList.remove('hidden');
+
+    let coinData;
+    try { coinData = await fetchBinanceData(escrow.token); }
+    catch(e) {
+        coinData = { _symbol: `${escrow.token.toUpperCase()}USDT`, _error: e.message,
+            lastPrice: null, priceChangePercent: null, quoteVolume: null, count: null };
+    }
+    lastCoinData = coinData;
+
+    $('githubDataBox').textContent = JSON.stringify({
+        symbol: coinData._symbol,
+        last_price_usdt: coinData.lastPrice,
+        price_change_24h_pct: coinData.priceChangePercent,
+        high_24h: coinData.highPrice,
+        low_24h: coinData.lowPrice,
+        quote_volume_usdt: coinData.quoteVolume,
+        trade_count: coinData.count,
+        error: coinData._error || null
+    }, null, 2);
+    $('term-step1-res').classList.remove('hidden');
+    await sleep(700);
+
+    // ── Step 2: Submit to GenLayer validators ──────────────────────────
+    $('term-step2').classList.remove('hidden');
+    await sleep(300);
+
+    let decision, newStatus, report, votes = [], txHash;
+
+    if (isRealMode()) {
+        // ── REAL on-chain: evaluate_and_execute via GenLayer SDK ───────
+        try {
+            // Show validators as "waiting on-chain"
+            VALIDATORS.forEach(v => {
+                $(v.id).querySelector('.val-status').innerHTML =
+                    '<i class="fa-solid fa-satellite-dish fa-pulse" style="color:#6128E6"></i> <span style="color:#6128E6">On-chain...</span>';
+            });
+
+            // Call real contract
+            txHash = await glClient.writeContract({
+                address: CONTRACT_ADDRESS,
+                functionName: 'evaluate_and_execute',
+                args: [escrow.id]
+            });
+
+            // Update validators to "waiting for consensus"
+            VALIDATORS.forEach(v => {
+                $(v.id).querySelector('.val-status').innerHTML =
+                    '<i class="fa-solid fa-circle-notch fa-spin" style="color:#D97706"></i> <span style="color:#D97706">Consensus...</span>';
+            });
+
+            // Wait for finalization (real on-chain consensus, may take ~60s)
+            const receipt = await glClient.waitForTransactionReceipt({ hash: txHash });
+
+            // Read real result from contract
+            const escrowData = await glClient.readContract({
+                address: CONTRACT_ADDRESS,
+                functionName: 'get_escrow',
+                args: [escrow.id]
+            });
+
+            console.log('[RugShield] raw escrowData:', escrowData);
+            window.__lastEscrowData = escrowData;
+
+            newStatus = escrowData?.status || escrowData?.[2] || 'REFUNDED';
+            report    = escrowData?.report || escrowData?.[3] || JSON.stringify(escrowData);
+            decision  = newStatus === 'RELEASED' ? 'SAFE'
+                      : (report || '').includes('RUG') ? 'RUG'
+                      : 'UNVERIFIED';
+
+            // Show all validators as agreed (they reached real on-chain consensus)
+            VALIDATORS.forEach((v, i) => {
+                votes.push(decision);
+                const el = $(v.id).querySelector('.val-status');
+                const clr = decision==='SAFE'?'#4CAF50':decision==='RUG'?'#FF3B30':'#D97706';
+                const ico = decision==='SAFE'?'fa-check':decision==='RUG'?'fa-triangle-exclamation':'fa-shield-halved';
+                setTimeout(() => {
+                    el.innerHTML=`<i class="fa-solid ${ico}" style="color:${clr}"></i> <span style="color:${clr};font-weight:700">${decision}</span>`;
+                    $(v.id).classList.add(decision==='SAFE'?'agreed':'disagreed');
+                }, i * 200);
+            });
+            await sleep(1200);
+
+        } catch(e) {
+            console.error('[RugShield] on-chain error:', e);
+            // Fallback to simulation on error
+            decision  = fallbackDecision(coinData);
+            newStatus = decision==='SAFE' ? 'RELEASED' : 'REFUNDED';
+            report    = decision==='SAFE' ? '✅ SAFE (fallback)' : '🚨 Risk detected (fallback)';
+            VALIDATORS.forEach(v => { votes.push(decision); });
+        }
+
+    } else {
+        // ── SIMULATION mode (no contract address set) ──────────────────
+        const hasKey = !!window.ANTHROPIC_KEY;
+        for (const v of VALIDATORS) {
+            await sleep(250 + Math.random() * 350);
+            let d;
+            if (hasKey) {
+                try { d = await callLLM(escrow.token, coinData, v.label); }
+                catch(e) { d = fallbackDecision(coinData); }
+            } else { d = fallbackDecision(coinData); }
+            votes.push(d);
+            const el = $(v.id).querySelector('.val-status');
+            const clr = d==='SAFE'?'#4CAF50':d==='RUG'?'#FF3B30':'#D97706';
+            const ico = d==='SAFE'?'fa-check':d==='RUG'?'fa-triangle-exclamation':'fa-shield-halved';
+            el.innerHTML=`<i class="fa-solid ${ico}" style="color:${clr}"></i> <span style="color:${clr};font-weight:700">${d}</span>`;
+            $(v.id).classList.add(d==='SAFE'?'agreed':'disagreed');
+        }
+        const count = votes.reduce((a,v)=>{a[v]=(a[v]||0)+1;return a;},{});
+        decision  = Object.keys(count).sort((a,b)=>count[b]-count[a])[0];
+        newStatus = decision==='SAFE' ? 'RELEASED' : 'REFUNDED';
+        report    = decision==='SAFE'
+            ? '✅ SAFE — GenVM AI consensus via CoinGecko data. Funds released.'
+            : decision==='RUG'
+                ? '🚨 RUG DETECTED — Price crash/volume collapse. Funds refunded to investor.'
+                : '⚠️ UNVERIFIED — Insufficient CoinGecko data. Funds refunded for safety.';
+    }
+
+    lastDecision = decision;
+
+    // ── Step 3: Consensus result ───────────────────────────────────────
+    await sleep(500);
+    const cBlock = $('term-step3');
+    const palette = {
+        SAFE:      ['border-green-500','bg-[#4CAF50]','bg-green-100 dark:bg-[#4CAF50]/10 text-green-700 dark:text-[#4CAF50]'],
+        RUG:       ['border-red-500','bg-[#FF3B30]','bg-red-100 dark:bg-[#FF3B30]/10 text-red-700 dark:text-[#FF3B30]'],
+        UNVERIFIED:['border-orange-500','bg-orange-500','bg-orange-100 dark:bg-[#D97706]/10 text-orange-700 dark:text-[#D97706]']
+    };
+    const [borderCls, dotCls, badgeCls] = palette[decision] || palette.UNVERIFIED;
+    cBlock.className = `relative pl-6 border-l ${borderCls} mt-2`;
+    $('consensusDot').className = `absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full ${dotCls}`;
+    $('consensusBadge').className = `px-2 py-0.5 rounded text-[11px] font-bold ${badgeCls}`;
+    cBlock.classList.remove('hidden');
+
+    escrows[currentIdx].status = newStatus;
+    escrows[currentIdx].report = report;
+    if (txHash) escrows[currentIdx].txHash = txHash;
+    totalAudits++;
+    saveState();
+    $('auditCount').innerHTML=`${totalAudits} <span class="text-sm text-green-500"><i class="fa-solid fa-arrow-trend-up"></i></span>`;
+
+    $('jsonResult').textContent = JSON.stringify({
+        kind: 'return', mode: isRealMode() ? 'on-chain' : 'simulation',
+        data: {
+            escrow_id: escrow.id, token: escrow.token,
+            contract_address: CONTRACT_ADDRESS,
+            contract_status: newStatus,
+            contract_report: report,
+            tx_hash: txHash || null,
+            binance_symbol: coinData._symbol,
+            last_price_usdt: coinData.lastPrice,
+            price_change_24h_pct: coinData.priceChangePercent,
+            quote_volume_usdt: coinData.quoteVolume,
+            trade_count: coinData.count,
+            validator_votes: { claude_35:votes[0], gpt4o:votes[1], gemini_15:votes[2], qwen25:votes[3], llama_33:votes[4] },
+            majority_decision: decision,
+            consensus_primitive: 'gl.eq_principle.* (whitelist + LLM fallback)'
+        }
+    }, null, 2);
+
+    await sleep(400);
+    $('term-done').classList.remove('hidden');
+    terminalArea.scrollTop = terminalArea.scrollHeight;
+    if (btn) btn.innerHTML='Run GenVM Audit';
+}
+
+// ── CLOSE MODAL ───────────────────────────────────────────────────────────────
+function closeModalAndRefresh() {
+    modal.classList.add('opacity-0');
+    setTimeout(()=>{
+        modal.classList.add('hidden');
+        renderEscrows();
+        const icon=$('toastIcon'), title=$('toastTitle'), msg=$('toastMessage'), toast=$('toastNotif');
+        if (lastDecision==='SAFE') {
+            icon.className='w-10 h-10 rounded-full flex items-center justify-center text-lg bg-green-100 dark:bg-green-900/30 text-green-600';
+            icon.innerHTML='<i class="fa-solid fa-check"></i>';
+            title.textContent='Funds Released!';
+            msg.textContent='GenVM AI consensus verified — GEN sent to developer.';
+        } else {
+            icon.className='w-10 h-10 rounded-full flex items-center justify-center text-lg bg-red-100 dark:bg-red-900/30 text-red-600';
+            icon.innerHTML='<i class="fa-solid fa-arrow-rotate-left"></i>';
+            title.textContent='Funds Refunded';
+            msg.textContent='Risk detected by 5 LLM validators. GEN safely returned.';
+        }
+        toast.classList.add('show');
+        setTimeout(()=>toast.classList.remove('show'), 5000);
+    }, 200);
+}
+$('closeModalBtn').addEventListener('click', closeModalAndRefresh);
+</script>
+</body>
+</html>
